@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI API Cost Calculator</title>
+    <meta name="description" content="Calculate costs for OpenAI, Anthropic, Google Gemini, and xAI API usage with batch pricing and extras">
+    <meta name="category" content="AI">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f8f8f6;
+            min-height: 100vh;
+            margin: 0;
+            padding: 16px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #1f2937;
+            margin: 0 0 8px 0;
+            font-size: 1.75rem;
+        }
+        .subtitle {
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin-bottom: 16px;
+        }
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+        @media (min-width: 768px) {
+            .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        }
+        .section {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e5e5e3;
+        }
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .form-group.full-width {
+            grid-column: span 2;
+        }
+        label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #4b5563;
+        }
+        select, input[type="number"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            background: #ffffff;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        select:focus, input:focus {
+            border-color: #6366f1;
+        }
+        input[type="number"]::-webkit-inner-spin-button {
+            opacity: 1;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+        .checkbox-label input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .note {
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 8px;
+        }
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 640px) {
+            .breakdown-grid { grid-template-columns: 1fr; }
+        }
+        .stat-box {
+            background: #f5f5f4;
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .stat-box.highlight {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            color: #6b7280;
+        }
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #111827;
+        }
+        .stat-box.highlight .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .assumptions {
+            margin-top: 16px;
+            display: grid;
+            gap: 12px;
+        }
+        @media (min-width: 640px) {
+            .assumptions { grid-template-columns: repeat(2, 1fr); }
+        }
+        .assumptions h4 {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #374151;
+            margin: 0 0 4px 0;
+        }
+        .assumptions ul {
+            margin: 0;
+            padding-left: 18px;
+            font-size: 0.7rem;
+            color: #6b7280;
+        }
+        .assumptions li {
+            margin-bottom: 2px;
+        }
+        .hidden { display: none !important; }
+        .pricing-info {
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: #fafaf9;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: #57534e;
+            border-left: 3px solid #d6d3d1;
+        }
+        .pricing-info-title {
+            font-weight: 600;
+            color: #44403c;
+            margin-bottom: 4px;
+        }
+        .pricing-info-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .pricing-info-item {
+            display: flex;
+            gap: 4px;
+        }
+        .pricing-info-label {
+            color: #78716c;
+        }
+        .pricing-info-value {
+            font-weight: 500;
+            font-family: ui-monospace, monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI API Cost Calculator</h1>
+        <p class="subtitle">Primary text/multimodal models with batch pricing and tool extras (Jan 2026)</p>
+
+        <div class="grid grid-3">
+            <!-- Provider & Model -->
+            <div class="section">
+                <div class="section-title">Provider & Model</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="provider">Provider</label>
+                        <select id="provider">
+                            <option value="OpenAI">OpenAI</option>
+                            <option value="Anthropic">Anthropic</option>
+                            <option value="Gemini">Gemini</option>
+                            <option value="xAI">xAI</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="model">Model</label>
+                        <select id="model"></select>
+                    </div>
+                </div>
+                <div class="checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="useBatch">
+                        <span>Batch pricing</span>
+                    </label>
+                    <label class="checkbox-label" id="longPromptLabel">
+                        <input type="checkbox" id="useLongPrompt">
+                        <span>Prompt &gt;200k tokens</span>
+                    </label>
+                </div>
+                <div class="pricing-info" id="pricingInfo">
+                    <div class="pricing-info-title">Per 1M tokens</div>
+                    <div class="pricing-info-row">
+                        <div class="pricing-info-item">
+                            <span class="pricing-info-label">In:</span>
+                            <span class="pricing-info-value" id="priceIn">$0</span>
+                        </div>
+                        <div class="pricing-info-item">
+                            <span class="pricing-info-label">Out:</span>
+                            <span class="pricing-info-value" id="priceOut">$0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Token Counts -->
+            <div class="section">
+                <div class="section-title">Token Counts</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="inputTokens">Input tokens</label>
+                        <input type="number" id="inputTokens" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="outputTokens">Output tokens</label>
+                        <input type="number" id="outputTokens" placeholder="0" min="0">
+                    </div>
+                </div>
+                <p class="note">Enter raw token counts; blank = 0</p>
+            </div>
+
+            <!-- Extras -->
+            <div class="section">
+                <div class="section-title">Extras (optional)</div>
+
+                <!-- OpenAI Extras -->
+                <div id="openai-extras" class="form-grid">
+                    <div class="form-group">
+                        <label>Code Interpreter sessions</label>
+                        <input type="number" id="oi_codeSessions" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>File Search tool calls</label>
+                        <input type="number" id="oi_fileSearchCalls" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>File Search GB-days</label>
+                        <input type="number" id="oi_fileSearchGBDays" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Web Search calls</label>
+                        <input type="number" id="oi_webSearchCalls" placeholder="0" min="0">
+                    </div>
+                </div>
+
+                <!-- Gemini Extras -->
+                <div id="gemini-extras" class="form-grid hidden">
+                    <div class="form-group">
+                        <label>Google Grounding calls</label>
+                        <input type="number" id="g_groundingCalls" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Cache writes (1M-tok units)</label>
+                        <input type="number" id="g_cacheWritesMTokens" placeholder="0" min="0" step="0.01">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Cache storage (1M-tok-hours)</label>
+                        <input type="number" id="g_cacheStorageTokenHours" placeholder="0" min="0" step="0.01">
+                    </div>
+                </div>
+
+                <!-- Anthropic Extras -->
+                <div id="anthropic-extras" class="form-grid hidden">
+                    <div class="form-group">
+                        <label>Code execution hours</label>
+                        <input type="number" id="a_containerHours" placeholder="0" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Web search calls</label>
+                        <input type="number" id="a_webSearchCalls" placeholder="0" min="0">
+                    </div>
+                </div>
+
+                <!-- xAI Extras -->
+                <div id="xai-extras" class="form-grid hidden">
+                    <div class="form-group">
+                        <label>Web/X Search calls</label>
+                        <input type="number" id="xai_searchCalls" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Live Search sources</label>
+                        <input type="number" id="xai_liveSearchSources" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Code execution calls</label>
+                        <input type="number" id="xai_codeExecCalls" placeholder="0" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Document Search calls</label>
+                        <input type="number" id="xai_docSearchCalls" placeholder="0" min="0">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Breakdown -->
+        <div class="section" style="margin-top: 16px;">
+            <div class="section-title">Breakdown</div>
+            <div class="breakdown-grid">
+                <div class="stat-box">
+                    <div class="stat-label">Token cost</div>
+                    <div class="stat-value" id="tokenCost">$0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Extras</div>
+                    <div class="stat-value" id="extrasCost">$0</div>
+                </div>
+                <div class="stat-box highlight">
+                    <div class="stat-label">Total</div>
+                    <div class="stat-value" id="totalCost">$0</div>
+                </div>
+            </div>
+            <div class="assumptions">
+                <div>
+                    <h4>Assumptions</h4>
+                    <ul>
+                        <li>Per-1M token pricing. Batch = 50% off for most providers.</li>
+                        <li>Gemini 2.5/3 Pro, Claude Sonnet 4.5 have long-prompt tiers (&gt;200k).</li>
+                        <li>O-series reasoning tokens are billed as output (not shown separately).</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Notes</h4>
+                    <ul>
+                        <li>Prices as of January 2026. Check provider docs for latest.</li>
+                        <li>Cached input discounts not included in base calculation.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Pricing data (January 2026)
+        const PRICING = {
+            OpenAI: {
+                "gpt-5.2": { in: 1.75, out: 14.0 },
+                "gpt-5.1": { in: 1.25, out: 10.0 },
+                "gpt-5-mini": { in: 0.25, out: 2.0 },
+                "gpt-5-nano": { in: 0.05, out: 0.4 },
+                "gpt-4.1": { in: 2.0, out: 8.0 },
+                "gpt-4.1-mini": { in: 0.4, out: 1.6 },
+                "gpt-4.1-nano": { in: 0.1, out: 0.4 },
+                "gpt-4o": { in: 2.5, out: 10.0 },
+                "gpt-4o-mini": { in: 0.15, out: 0.6 },
+                "o3": { in: 2.0, out: 8.0 },
+                "o3-mini": { in: 1.1, out: 4.4 },
+                "o4-mini": { in: 1.1, out: 4.4 },
+                "o1": { in: 15.0, out: 60.0 },
+                "o1-mini": { in: 1.1, out: 4.4 }
+            },
+            Anthropic: {
+                "claude-opus-4.5": { in: 5.0, out: 25.0 },
+                "claude-opus-4.1": { in: 15.0, out: 75.0 },
+                "claude-sonnet-4.5": {
+                    standard: { in: 3.0, out: 15.0 },
+                    longPrompt: { in: 6.0, out: 22.5 }
+                },
+                "claude-sonnet-4": { in: 3.0, out: 15.0 },
+                "claude-haiku-4.5": { in: 1.0, out: 5.0 },
+                "claude-haiku-3.5": { in: 0.8, out: 4.0 },
+                "claude-haiku-3": { in: 0.25, out: 1.25 }
+            },
+            Gemini: {
+                "gemini-3-pro": {
+                    standard: { in: 2.0, out: 12.0 },
+                    longPrompt: { in: 4.0, out: 18.0 },
+                    cacheWrite_standard: 0.2,
+                    cacheWrite_long: 0.4,
+                    cacheStoragePerMTokHour: 4.5
+                },
+                "gemini-3-flash": {
+                    in: 0.5, out: 3.0,
+                    cacheWrite: 0.05,
+                    cacheStoragePerMTokHour: 1.0
+                },
+                "gemini-2.5-pro": {
+                    standard: { in: 1.25, out: 10.0 },
+                    longPrompt: { in: 2.5, out: 15.0 },
+                    cacheWrite_standard: 0.125,
+                    cacheWrite_long: 0.25,
+                    cacheStoragePerMTokHour: 4.5
+                },
+                "gemini-2.5-flash": {
+                    in: 0.3, out: 2.5,
+                    cacheWrite: 0.03,
+                    cacheStoragePerMTokHour: 1.0
+                },
+                "gemini-2.5-flash-lite": {
+                    in: 0.1, out: 0.4,
+                    cacheWrite: 0.01,
+                    cacheStoragePerMTokHour: 1.0
+                },
+                "gemini-2.0-flash": {
+                    in: 0.1, out: 0.4,
+                    cacheWrite: 0.025,
+                    cacheStoragePerMTokHour: 1.0
+                },
+                "gemini-2.0-flash-lite": { in: 0.075, out: 0.3 }
+            },
+            xAI: {
+                "grok-4": { in: 3.0, out: 15.0 },
+                "grok-4.1-fast": { in: 0.2, out: 0.5 },
+                "grok-4-fast": { in: 0.2, out: 0.5 },
+                "grok-code-fast-1": { in: 0.2, out: 1.5 },
+                "grok-3": { in: 3.0, out: 15.0 },
+                "grok-3-mini": { in: 0.3, out: 0.5 }
+            }
+        };
+
+        // Extras pricing
+        const EXTRAS = {
+            OpenAI: {
+                codeInterpreterPerSession: 0.03,
+                fileSearchPer1kCalls: 2.5,
+                fileSearchStoragePerGBDay: 0.1,
+                webSearchPer1kCalls: 10.0
+            },
+            Gemini: {
+                googleGroundingPer1k: 35.0
+            },
+            Anthropic: {
+                codeExecutionContainerPerHour: 0.05,
+                webSearchPer1k: 10.0
+            },
+            xAI: {
+                searchPer1k: 5.0,
+                liveSearchPer1kSources: 25.0,
+                codeExecPer1k: 5.0,
+                docSearchPer1k: 5.0
+            }
+        };
+
+        // Models with long-prompt tiers
+        const LONG_PROMPT_MODELS = [
+            'gemini-3-pro', 'gemini-2.5-pro', 'claude-sonnet-4.5'
+        ];
+
+        // DOM elements
+        const providerEl = document.getElementById('provider');
+        const modelEl = document.getElementById('model');
+        const useBatchEl = document.getElementById('useBatch');
+        const useLongPromptEl = document.getElementById('useLongPrompt');
+        const longPromptLabelEl = document.getElementById('longPromptLabel');
+        const inputTokensEl = document.getElementById('inputTokens');
+        const outputTokensEl = document.getElementById('outputTokens');
+
+        const tokenCostEl = document.getElementById('tokenCost');
+        const extrasCostEl = document.getElementById('extrasCost');
+        const totalCostEl = document.getElementById('totalCost');
+        const priceInEl = document.getElementById('priceIn');
+        const priceOutEl = document.getElementById('priceOut');
+
+        // Extra sections
+        const extrasContainers = {
+            OpenAI: document.getElementById('openai-extras'),
+            Gemini: document.getElementById('gemini-extras'),
+            Anthropic: document.getElementById('anthropic-extras'),
+            xAI: document.getElementById('xai-extras')
+        };
+
+        // Utility
+        function getNum(el) {
+            const v = parseFloat(el.value);
+            return isNaN(v) ? 0 : v;
+        }
+
+        function fmt(n) {
+            if (n < 0.0001 && n > 0) return '$' + n.toExponential(2);
+            return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+        }
+
+        // Update model dropdown
+        function updateModels() {
+            const provider = providerEl.value;
+            const models = Object.keys(PRICING[provider]);
+            modelEl.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+            updateUI();
+        }
+
+        // Update UI visibility
+        function updateUI() {
+            const provider = providerEl.value;
+            const model = modelEl.value;
+
+            // Show/hide extras
+            Object.keys(extrasContainers).forEach(p => {
+                extrasContainers[p].classList.toggle('hidden', p !== provider);
+            });
+
+            // Show/hide long prompt checkbox
+            const hasLongPrompt = LONG_PROMPT_MODELS.includes(model);
+            longPromptLabelEl.classList.toggle('hidden', !hasLongPrompt);
+            if (!hasLongPrompt) useLongPromptEl.checked = false;
+
+            // Disable batch for xAI
+            useBatchEl.disabled = provider === 'xAI';
+            if (provider === 'xAI') useBatchEl.checked = false;
+
+            calculate();
+        }
+
+        // Calculate costs
+        function calculate() {
+            const provider = providerEl.value;
+            const model = modelEl.value;
+            const useBatch = useBatchEl.checked;
+            const useLongPrompt = useLongPromptEl.checked;
+            const inputTokens = getNum(inputTokensEl);
+            const outputTokens = getNum(outputTokensEl);
+
+            const pricing = PRICING[provider][model];
+            if (!pricing) return;
+
+            let inRate = 0, outRate = 0;
+
+            // Determine rates based on model structure
+            if (pricing.standard) {
+                // Has long-prompt tiers (Gemini Pro, Claude Sonnet 4.5)
+                const tier = useLongPrompt ? pricing.longPrompt : pricing.standard;
+                inRate = tier.in;
+                outRate = tier.out;
+            } else {
+                inRate = pricing.in;
+                outRate = pricing.out;
+            }
+
+            // Apply batch discount (50% for most)
+            if (useBatch && provider !== 'xAI') {
+                inRate *= 0.5;
+                outRate *= 0.5;
+            }
+
+            const tokenCost = (inputTokens / 1_000_000) * inRate + (outputTokens / 1_000_000) * outRate;
+
+            // Calculate extras
+            let extrasCost = 0;
+
+            if (provider === 'OpenAI') {
+                const ext = EXTRAS.OpenAI;
+                extrasCost += getNum(document.getElementById('oi_codeSessions')) * ext.codeInterpreterPerSession;
+                extrasCost += (getNum(document.getElementById('oi_fileSearchCalls')) / 1000) * ext.fileSearchPer1kCalls;
+                extrasCost += getNum(document.getElementById('oi_fileSearchGBDays')) * ext.fileSearchStoragePerGBDay;
+                extrasCost += (getNum(document.getElementById('oi_webSearchCalls')) / 1000) * ext.webSearchPer1kCalls;
+            }
+
+            if (provider === 'Gemini') {
+                const ext = EXTRAS.Gemini;
+                extrasCost += (getNum(document.getElementById('g_groundingCalls')) / 1000) * ext.googleGroundingPer1k;
+
+                // Cache costs
+                if (pricing.cacheWrite_standard !== undefined) {
+                    const writeRate = useLongPrompt ? pricing.cacheWrite_long : pricing.cacheWrite_standard;
+                    extrasCost += getNum(document.getElementById('g_cacheWritesMTokens')) * writeRate;
+                } else if (pricing.cacheWrite !== undefined) {
+                    extrasCost += getNum(document.getElementById('g_cacheWritesMTokens')) * pricing.cacheWrite;
+                }
+                if (pricing.cacheStoragePerMTokHour) {
+                    extrasCost += getNum(document.getElementById('g_cacheStorageTokenHours')) * pricing.cacheStoragePerMTokHour;
+                }
+            }
+
+            if (provider === 'Anthropic') {
+                const ext = EXTRAS.Anthropic;
+                extrasCost += getNum(document.getElementById('a_containerHours')) * ext.codeExecutionContainerPerHour;
+                extrasCost += (getNum(document.getElementById('a_webSearchCalls')) / 1000) * ext.webSearchPer1k;
+            }
+
+            if (provider === 'xAI') {
+                const ext = EXTRAS.xAI;
+                extrasCost += (getNum(document.getElementById('xai_searchCalls')) / 1000) * ext.searchPer1k;
+                extrasCost += (getNum(document.getElementById('xai_liveSearchSources')) / 1000) * ext.liveSearchPer1kSources;
+                extrasCost += (getNum(document.getElementById('xai_codeExecCalls')) / 1000) * ext.codeExecPer1k;
+                extrasCost += (getNum(document.getElementById('xai_docSearchCalls')) / 1000) * ext.docSearchPer1k;
+            }
+
+            const total = tokenCost + extrasCost;
+
+            tokenCostEl.textContent = fmt(tokenCost);
+            extrasCostEl.textContent = fmt(extrasCost);
+            totalCostEl.textContent = fmt(total);
+
+            // Update pricing info display
+            priceInEl.textContent = '$' + inRate.toFixed(2);
+            priceOutEl.textContent = '$' + outRate.toFixed(2);
+        }
+
+        // Event listeners
+        providerEl.addEventListener('change', updateModels);
+        modelEl.addEventListener('change', updateUI);
+        useBatchEl.addEventListener('change', calculate);
+        useLongPromptEl.addEventListener('change', calculate);
+        inputTokensEl.addEventListener('input', calculate);
+        outputTokensEl.addEventListener('input', calculate);
+
+        // All extras inputs
+        document.querySelectorAll('[id^="oi_"], [id^="g_"], [id^="a_"], [id^="xai_"]').forEach(el => {
+            el.addEventListener('input', calculate);
+        });
+
+        // Initialize
+        updateModels();
+    </script>
+</body>
+</html>
