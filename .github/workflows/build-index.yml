@@ -28,39 +28,36 @@ jobs:
           from pathlib import Path
           from datetime import datetime
 
-          # Scan for HTML files in /share directory
+          # Scan for HTML files in root directory
           tools = []
-          share_dir = Path('share')
+          for f in Path('.').glob('*.html'):
+              if f.name == 'index.html':
+                  continue
 
-          if share_dir.exists():
-              for f in share_dir.glob('*.html'):
-                  if f.name == 'index.html':
-                      continue
+              content = f.read_text(encoding='utf-8', errors='ignore')
 
-                  content = f.read_text(encoding='utf-8', errors='ignore')
+              # Extract title
+              title_match = re.search(r'<title>([^<]+)</title>', content, re.IGNORECASE)
+              title = title_match.group(1).strip() if title_match else f.stem.replace('-', ' ').title()
 
-                  # Extract title
-                  title_match = re.search(r'<title>([^<]+)</title>', content, re.IGNORECASE)
-                  title = title_match.group(1).strip() if title_match else f.stem.replace('-', ' ').title()
+              # Extract description
+              desc_match = re.search(r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']', content, re.IGNORECASE)
+              if not desc_match:
+                  desc_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+name=["\']description["\']', content, re.IGNORECASE)
+              description = desc_match.group(1).strip() if desc_match else ''
 
-                  # Extract description
-                  desc_match = re.search(r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']+)["\']', content, re.IGNORECASE)
-                  if not desc_match:
-                      desc_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+name=["\']description["\']', content, re.IGNORECASE)
-                  description = desc_match.group(1).strip() if desc_match else ''
+              # Extract category
+              cat_match = re.search(r'<meta\s+name=["\']category["\']\s+content=["\']([^"\']+)["\']', content, re.IGNORECASE)
+              if not cat_match:
+                  cat_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+name=["\']category["\']', content, re.IGNORECASE)
+              category = cat_match.group(1).strip() if cat_match else 'Uncategorized'
 
-                  # Extract category
-                  cat_match = re.search(r'<meta\s+name=["\']category["\']\s+content=["\']([^"\']+)["\']', content, re.IGNORECASE)
-                  if not cat_match:
-                      cat_match = re.search(r'<meta\s+content=["\']([^"\']+)["\']\s+name=["\']category["\']', content, re.IGNORECASE)
-                  category = cat_match.group(1).strip() if cat_match else 'Uncategorized'
-
-                  tools.append({
-                      'file': f'share/{f.name}',
-                      'title': title,
-                      'description': description,
-                      'category': category
-                  })
+              tools.append({
+                  'file': f.name,
+                  'title': title,
+                  'description': description,
+                  'category': category
+              })
 
           # Group by category
           categories = {}
