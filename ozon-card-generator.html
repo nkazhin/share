@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OZON Card Generator</title>
+  <meta name="description" content="Генератор карточек товара для OZON на основе фотографий и текстовых полей.">
+  <meta name="category" content="AI">
+  <meta name="icon" content="🛒">
+  <style>
+    :root {
+      --bg: #f5f2ea;
+      --panel: #fffdf8;
+      --ink: #1f2937;
+      --muted: #6b7280;
+      --line: #ddd4c4;
+      --accent: #e96b1f;
+      --accent-dark: #b94f12;
+      --accent-soft: #fff1e7;
+      --shadow: 0 24px 60px rgba(59, 31, 7, 0.12);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(233, 107, 31, 0.18), transparent 28%),
+        linear-gradient(180deg, #faf6ef 0%, #f0ece3 100%);
+    }
+
+    .shell {
+      width: min(1160px, calc(100vw - 32px));
+      margin: 24px auto;
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card {
+      background: rgba(255, 253, 248, 0.92);
+      border: 1px solid rgba(221, 212, 196, 0.85);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .form-card {
+      padding: 28px;
+    }
+
+    .result-card {
+      padding: 20px;
+      position: sticky;
+      top: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.02;
+      letter-spacing: -0.03em;
+    }
+
+    .lead {
+      margin: 0 0 24px;
+      color: var(--muted);
+      max-width: 720px;
+      line-height: 1.5;
+    }
+
+    .section {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
+
+    .section:first-of-type {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      margin: 0 0 14px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 14px;
+    }
+
+    .label-text {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 16px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    input[type="text"]::placeholder {
+      color: #9ca3af;
+    }
+
+    .hint {
+      margin: 6px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .dropzone {
+      border: 2px dashed #c9baa2;
+      border-radius: 22px;
+      padding: 22px;
+      background: linear-gradient(180deg, rgba(255, 244, 234, 0.8), rgba(255, 253, 248, 0.95));
+    }
+
+    .dropzone strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .dropzone button,
+    .secondary-btn,
+    .ghost-btn,
+    .primary-btn {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 18px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, var(--accent), #ff954a);
+      color: #fff;
+      min-width: 180px;
+      box-shadow: 0 14px 30px rgba(233, 107, 31, 0.28);
+    }
+
+    .secondary-btn {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    .ghost-btn {
+      background: transparent;
+      color: var(--accent-dark);
+      padding: 8px 4px;
+    }
+
+    .primary-btn:hover,
+    .secondary-btn:hover,
+    .ghost-btn:hover,
+    .dropzone button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary-btn:disabled,
+    .secondary-btn:disabled,
+    .ghost-btn:disabled,
+    .dropzone button:disabled {
+      opacity: 0.45;
+      cursor: default;
+      transform: none;
+    }
+
+    .file-trigger {
+      margin-top: 14px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+
+    .thumbs {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+      gap: 10px;
+    }
+
+    .thumb {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #efe8db;
+      border: 1px solid rgba(201, 186, 162, 0.72);
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumb span {
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      padding: 6px 8px;
+      border-radius: 12px;
+      background: rgba(31, 41, 55, 0.7);
+      color: #fff;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .extra-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .extra-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .status {
+      min-height: 24px;
+      margin-top: 14px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .status.error {
+      color: #b42318;
+    }
+
+    .status.success {
+      color: #0f766e;
+    }
+
+    .result-frame {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 238, 0.9));
+      border-radius: 22px;
+      border: 1px solid rgba(221, 212, 196, 0.9);
+      min-height: 420px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .result-frame.empty::before {
+      content: "Здесь появится готовая карточка";
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .result-frame img {
+      width: 100%;
+      display: block;
+    }
+
+    .result-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .mini-note {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 920px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .result-card {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <section class="card form-card">
+      <div class="pill">Один стиль уже встроен</div>
+      <h1>Генератор карточек для OZON</h1>
+      <p class="lead">
+        Загружаете фото товара, вписываете название, тип продукции и строки дополнительной информации.
+        Образец стиля уже подставляется автоматически. Если результат неудачный, просто нажмите «Перегенерировать».
+      </p>
+
+      <div class="section">
+        <p class="section-title">1. Фотографии</p>
+        <div class="dropzone">
+          <strong>Загрузите фотографии товара</strong>
+          <div>Лучше 3-6 фото. Желательно показать изделие и упаковку целиком.</div>
+          <button class="file-trigger secondary-btn" type="button" id="pickFilesBtn">Выбрать фотографии</button>
+          <input type="file" id="fileInput" accept="image/*" multiple hidden>
+          <div class="thumbs" id="thumbs"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <p class="section-title">2. Текст на карточке</p>
+        <label>
+          <span class="label-text">Название детали</span>
+          <input id="titleInput" type="text" placeholder="РСО-502">
+        </label>
+        <label>
+          <span class="label-text">Тип продукции</span>
+          <input id="subtitleInput" type="text" placeholder="Реле стеклоочистителя">
+        </label>
+      </div>
+
+      <div class="section">
+        <p class="section-title">3. Дополнительная информация</p>
+        <div class="extra-list" id="extraList"></div>
+        <button class="ghost-btn" type="button" id="addExtraBtn">+ Добавить строку</button>
+        <p class="hint">Пример: «12В», «Для автомобилей с бортовой сетью 12В».</p>
+      </div>
+
+      <div class="actions">
+        <button class="primary-btn" type="button" id="generateBtn">Сгенерировать</button>
+      </div>
+      <div class="status" id="status"></div>
+    </section>
+
+    <aside class="card result-card">
+      <div class="result-frame empty" id="resultFrame"></div>
+      <div class="result-actions">
+        <button class="secondary-btn" type="button" id="downloadBtn" disabled>Скачать PNG</button>
+        <button class="secondary-btn" type="button" id="retryBtn" disabled>Перегенерировать</button>
+      </div>
+      <p class="mini-note">
+        «Перегенерировать» заново отправляет те же данные, без дополнительных правок. Это снижает риск галлюцинаций и дрейфа.
+      </p>
+    </aside>
+  </div>
+
+  <script>
+    const API_URL = "https://ozon-card-proxy-305018873985.europe-west1.run.app/generate";
+    const state = {
+      files: [],
+      imageUrl: "",
+      imageBlob: null,
+      generating: false,
+    };
+
+    const pickFilesBtn = document.getElementById("pickFilesBtn");
+    const fileInput = document.getElementById("fileInput");
+    const thumbs = document.getElementById("thumbs");
+    const extraList = document.getElementById("extraList");
+    const addExtraBtn = document.getElementById("addExtraBtn");
+    const generateBtn = document.getElementById("generateBtn");
+    const retryBtn = document.getElementById("retryBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const resultFrame = document.getElementById("resultFrame");
+    const statusNode = document.getElementById("status");
+
+    function addExtraRow(value = "") {
+      const row = document.createElement("div");
+      row.className = "extra-row";
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Новая строка";
+      input.value = value;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "secondary-btn";
+      removeBtn.textContent = "Убрать";
+      removeBtn.addEventListener("click", () => {
+        row.remove();
+        if (!extraList.children.length) addExtraRow();
+      });
+
+      row.appendChild(input);
+      row.appendChild(removeBtn);
+      extraList.appendChild(row);
+    }
+
+    function setStatus(message = "", kind = "") {
+      statusNode.textContent = message;
+      statusNode.className = kind ? `status ${kind}` : "status";
+    }
+
+    function renderThumbs() {
+      thumbs.innerHTML = "";
+      state.files.forEach((file) => {
+        const item = document.createElement("div");
+        item.className = "thumb";
+
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        img.onload = () => URL.revokeObjectURL(img.src);
+
+        const name = document.createElement("span");
+        name.textContent = file.name;
+
+        item.appendChild(img);
+        item.appendChild(name);
+        thumbs.appendChild(item);
+      });
+    }
+
+    function renderResult() {
+      resultFrame.innerHTML = "";
+      resultFrame.classList.toggle("empty", !state.imageUrl);
+      if (!state.imageUrl) return;
+
+      const img = document.createElement("img");
+      img.src = state.imageUrl;
+      img.alt = "Сгенерированная карточка";
+      resultFrame.appendChild(img);
+    }
+
+    function collectExtraInfo() {
+      return [...extraList.querySelectorAll("input")]
+        .map((input) => input.value.trim())
+        .filter(Boolean);
+    }
+
+    function getTitle() {
+      return document.getElementById("titleInput").value.trim();
+    }
+
+    function getSubtitle() {
+      return document.getElementById("subtitleInput").value.trim();
+    }
+
+    function updateButtons() {
+      const canSubmit = !state.generating && state.files.length > 0;
+      generateBtn.disabled = !canSubmit;
+      retryBtn.disabled = !canSubmit;
+      downloadBtn.disabled = !state.imageBlob || state.generating;
+    }
+
+    async function generateCard() {
+      const title = getTitle();
+      const subtitle = getSubtitle();
+      const extraInfo = collectExtraInfo();
+
+      if (!title) {
+        setStatus("Заполните поле «Название детали».", "error");
+        return;
+      }
+      if (!subtitle) {
+        setStatus("Заполните поле «Тип продукции».", "error");
+        return;
+      }
+      if (!extraInfo.length) {
+        setStatus("Добавьте хотя бы одну строку дополнительной информации.", "error");
+        return;
+      }
+      if (!state.files.length) {
+        setStatus("Загрузите хотя бы одну фотографию.", "error");
+        return;
+      }
+
+      state.generating = true;
+      updateButtons();
+      setStatus("Генерация... обычно это занимает до минуты.");
+
+      const body = new FormData();
+      body.append("title", title);
+      body.append("subtitle", subtitle);
+      extraInfo.forEach((item) => body.append("extraInfo", item));
+      state.files.forEach((file) => body.append("images", file));
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          body,
+        });
+
+        if (!response.ok) {
+          let message = "Не удалось сгенерировать карточку.";
+          try {
+            const data = await response.json();
+            if (data.error) message = data.error;
+          } catch (error) {
+          }
+          throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        if (state.imageUrl) URL.revokeObjectURL(state.imageUrl);
+        state.imageBlob = blob;
+        state.imageUrl = URL.createObjectURL(blob);
+        renderResult();
+        setStatus("Карточка готова.", "success");
+      } catch (error) {
+        setStatus(error.message || "Ошибка генерации.", "error");
+      } finally {
+        state.generating = false;
+        updateButtons();
+      }
+    }
+
+    pickFilesBtn.addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", (event) => {
+      state.files = [...event.target.files].slice(0, 6);
+      renderThumbs();
+      setStatus(state.files.length ? `Загружено фотографий: ${state.files.length}.` : "");
+      updateButtons();
+    });
+
+    addExtraBtn.addEventListener("click", () => addExtraRow());
+    generateBtn.addEventListener("click", generateCard);
+    retryBtn.addEventListener("click", generateCard);
+
+    downloadBtn.addEventListener("click", () => {
+      if (!state.imageBlob) return;
+      const link = document.createElement("a");
+      const title = getTitle() || "ozon-card";
+      link.href = state.imageUrl;
+      link.download = `${title}.png`;
+      link.click();
+    });
+
+    addExtraRow("12В");
+    addExtraRow("Для автомобилей с бортовой сетью 12В");
+    updateButtons();
+  </script>
+</body>
+</html>
