@@ -133,6 +133,13 @@
       border-radius: 22px;
       padding: 22px;
       background: linear-gradient(180deg, rgba(255, 244, 234, 0.8), rgba(255, 253, 248, 0.95));
+      transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, rgba(255, 234, 220, 0.96), rgba(255, 248, 241, 0.98));
+      transform: translateY(-1px);
     }
 
     .dropzone strong {
@@ -235,6 +242,29 @@
       text-overflow: ellipsis;
     }
 
+    .thumb-remove {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      border: 0;
+      background: rgba(31, 41, 55, 0.76);
+      color: #fff;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+
+    .thumb-remove:hover {
+      background: rgba(185, 79, 18, 0.94);
+      transform: none;
+    }
+
     .extra-list {
       display: grid;
       gap: 10px;
@@ -252,6 +282,27 @@
       flex-wrap: wrap;
       gap: 12px;
       margin-top: 28px;
+    }
+
+    .btn-spinner {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    .primary-btn.loading {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .primary-btn.loading .btn-spinner {
+      display: inline-block;
     }
 
     .status {
@@ -299,13 +350,6 @@
       flex-wrap: wrap;
     }
 
-    .mini-note {
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.45;
-    }
-
     .pill {
       display: inline-flex;
       align-items: center;
@@ -317,6 +361,11 @@
       font-size: 13px;
       font-weight: 700;
       margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
 
     @media (max-width: 920px) {
@@ -333,18 +382,18 @@
 <body>
   <div class="shell">
     <section class="card form-card">
-      <div class="pill">Один стиль уже встроен</div>
+      <div class="pill">Стиль уже задан</div>
       <h1>Генератор карточек для OZON</h1>
       <p class="lead">
         Загружаете фото товара, вписываете название, тип продукции и строки дополнительной информации.
-        Образец стиля уже подставляется автоматически. Если результат неудачный, просто нажмите «Перегенерировать».
+        Образец стиля уже подставляется автоматически. Если результат неудачный, просто нажмите «Переделать».
       </p>
 
       <div class="section">
         <p class="section-title">1. Фотографии</p>
-        <div class="dropzone">
+        <div class="dropzone" id="dropzone">
           <strong>Загрузите фотографии товара</strong>
-          <div>Лучше 3-6 фото. Желательно показать изделие и упаковку целиком.</div>
+          <div>Перетащите фото сюда или выберите их вручную. Лучше 3-6 фото. Желательно показать изделие и упаковку целиком.</div>
           <button class="file-trigger secondary-btn" type="button" id="pickFilesBtn">Выбрать фотографии</button>
           <input type="file" id="fileInput" accept="image/*" multiple hidden>
           <div class="thumbs" id="thumbs"></div>
@@ -367,11 +416,14 @@
         <p class="section-title">3. Дополнительная информация</p>
         <div class="extra-list" id="extraList"></div>
         <button class="ghost-btn" type="button" id="addExtraBtn">+ Добавить строку</button>
-        <p class="hint">Пример: «12В», «Для автомобилей с бортовой сетью 12В».</p>
       </div>
 
       <div class="actions">
-        <button class="primary-btn" type="button" id="generateBtn">Сгенерировать</button>
+        <button class="primary-btn" type="button" id="generateBtn">
+          <span class="btn-spinner" aria-hidden="true"></span>
+          <span id="generateBtnLabel">Сгенерировать</span>
+        </button>
+        <button class="secondary-btn" type="button" id="resetBtn">Сбросить / Новая карточка</button>
       </div>
       <div class="status" id="status"></div>
     </section>
@@ -380,11 +432,8 @@
       <div class="result-frame empty" id="resultFrame"></div>
       <div class="result-actions">
         <button class="secondary-btn" type="button" id="downloadBtn" disabled>Скачать PNG</button>
-        <button class="secondary-btn" type="button" id="retryBtn" disabled>Перегенерировать</button>
+        <button class="secondary-btn" type="button" id="retryBtn" disabled>Переделать</button>
       </div>
-      <p class="mini-note">
-        «Перегенерировать» заново отправляет те же данные, без дополнительных правок. Это снижает риск галлюцинаций и дрейфа.
-      </p>
     </aside>
   </div>
 
@@ -403,10 +452,15 @@
     const extraList = document.getElementById("extraList");
     const addExtraBtn = document.getElementById("addExtraBtn");
     const generateBtn = document.getElementById("generateBtn");
+    const generateBtnLabel = document.getElementById("generateBtnLabel");
     const retryBtn = document.getElementById("retryBtn");
     const downloadBtn = document.getElementById("downloadBtn");
+    const resetBtn = document.getElementById("resetBtn");
     const resultFrame = document.getElementById("resultFrame");
     const statusNode = document.getElementById("status");
+    const dropzone = document.getElementById("dropzone");
+    const titleInput = document.getElementById("titleInput");
+    const subtitleInput = document.getElementById("subtitleInput");
 
     function addExtraRow(value = "") {
       const row = document.createElement("div");
@@ -414,7 +468,7 @@
 
       const input = document.createElement("input");
       input.type = "text";
-      input.placeholder = "Новая строка";
+      input.placeholder = "Например: 12В";
       input.value = value;
 
       const removeBtn = document.createElement("button");
@@ -438,7 +492,7 @@
 
     function renderThumbs() {
       thumbs.innerHTML = "";
-      state.files.forEach((file) => {
+      state.files.forEach((file, index) => {
         const item = document.createElement("div");
         item.className = "thumb";
 
@@ -446,10 +500,23 @@
         img.src = URL.createObjectURL(file);
         img.onload = () => URL.revokeObjectURL(img.src);
 
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "thumb-remove";
+        removeBtn.textContent = "×";
+        removeBtn.setAttribute("aria-label", `Удалить ${file.name}`);
+        removeBtn.addEventListener("click", () => {
+          state.files.splice(index, 1);
+          renderThumbs();
+          updateButtons();
+          setStatus(state.files.length ? `Загружено фотографий: ${state.files.length}.` : "");
+        });
+
         const name = document.createElement("span");
         name.textContent = file.name;
 
         item.appendChild(img);
+        item.appendChild(removeBtn);
         item.appendChild(name);
         thumbs.appendChild(item);
       });
@@ -484,7 +551,33 @@
       const canSubmit = !state.generating && state.files.length > 0;
       generateBtn.disabled = !canSubmit;
       retryBtn.disabled = !canSubmit;
+      resetBtn.disabled = state.generating;
       downloadBtn.disabled = !state.imageBlob || state.generating;
+      generateBtn.classList.toggle("loading", state.generating);
+      generateBtnLabel.textContent = state.generating ? "Генерация..." : "Сгенерировать";
+    }
+
+    function resetForm() {
+      state.files = [];
+      state.imageBlob = null;
+      if (state.imageUrl) URL.revokeObjectURL(state.imageUrl);
+      state.imageUrl = "";
+      fileInput.value = "";
+      titleInput.value = "";
+      subtitleInput.value = "";
+      extraList.innerHTML = "";
+      addExtraRow();
+      renderThumbs();
+      renderResult();
+      setStatus("");
+      updateButtons();
+    }
+
+    function setFiles(files) {
+      state.files = files.slice(0, 6);
+      renderThumbs();
+      setStatus(state.files.length ? `Загружено фотографий: ${state.files.length}.` : "");
+      updateButtons();
     }
 
     async function generateCard() {
@@ -511,7 +604,7 @@
 
       state.generating = true;
       updateButtons();
-      setStatus("Генерация... обычно это занимает до минуты.");
+      setStatus("");
 
       const body = new FormData();
       body.append("title", title);
@@ -552,15 +645,32 @@
     pickFilesBtn.addEventListener("click", () => fileInput.click());
 
     fileInput.addEventListener("change", (event) => {
-      state.files = [...event.target.files].slice(0, 6);
-      renderThumbs();
-      setStatus(state.files.length ? `Загружено фотографий: ${state.files.length}.` : "");
-      updateButtons();
+      setFiles([...event.target.files]);
+    });
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropzone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "dragend", "drop"].forEach((eventName) => {
+      dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropzone.classList.remove("dragover");
+      });
+    });
+
+    dropzone.addEventListener("drop", (event) => {
+      const files = [...event.dataTransfer.files].filter((file) => file.type.startsWith("image/"));
+      setFiles(files);
     });
 
     addExtraBtn.addEventListener("click", () => addExtraRow());
     generateBtn.addEventListener("click", generateCard);
     retryBtn.addEventListener("click", generateCard);
+    resetBtn.addEventListener("click", resetForm);
 
     downloadBtn.addEventListener("click", () => {
       if (!state.imageBlob) return;
@@ -571,8 +681,7 @@
       link.click();
     });
 
-    addExtraRow("12В");
-    addExtraRow("Для автомобилей с бортовой сетью 12В");
+    addExtraRow();
     updateButtons();
   </script>
 </body>
