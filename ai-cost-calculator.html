@@ -6,6 +6,7 @@
     <title>AI API Cost Calculator</title>
     <meta name="description" content="Calculate costs for OpenAI, Anthropic, Google Gemini, and xAI API usage with batch pricing and extras">
     <meta name="category" content="AI">
+    <meta name="icon" content="💰">
     <style>
         * {
             box-sizing: border-box;
@@ -197,7 +198,7 @@
 <body>
     <div class="container">
         <h1>AI API Cost Calculator</h1>
-        <p class="subtitle">Primary text/multimodal models with batch pricing and tool extras (Jan 2026)</p>
+        <p class="subtitle">Current general-purpose model tiers with batch pricing and tool extras (verified Mar 2026)</p>
 
         <div class="grid grid-3">
             <!-- Provider & Model -->
@@ -225,7 +226,7 @@
                     </label>
                     <label class="checkbox-label" id="longPromptLabel">
                         <input type="checkbox" id="useLongPrompt">
-                        <span>Prompt &gt;200k tokens</span>
+                        <span id="longPromptText">Long-context pricing</span>
                     </label>
                 </div>
                 <div class="pricing-info" id="pricingInfo">
@@ -241,6 +242,7 @@
                         </div>
                     </div>
                 </div>
+                <p class="note hidden" id="longPromptNote"></p>
             </div>
 
             <!-- Token Counts -->
@@ -266,7 +268,7 @@
                 <!-- OpenAI Extras -->
                 <div id="openai-extras" class="form-grid">
                     <div class="form-group">
-                        <label>Code Interpreter sessions</label>
+                        <label>Containers (1 GB units)</label>
                         <input type="number" id="oi_codeSessions" placeholder="0" min="0">
                     </div>
                     <div class="form-group">
@@ -314,11 +316,11 @@
                 <!-- xAI Extras -->
                 <div id="xai-extras" class="form-grid hidden">
                     <div class="form-group">
-                        <label>Web/X Search calls</label>
+                        <label>Web Search calls</label>
                         <input type="number" id="xai_searchCalls" placeholder="0" min="0">
                     </div>
                     <div class="form-group">
-                        <label>Live Search sources</label>
+                        <label>X Search calls</label>
                         <input type="number" id="xai_liveSearchSources" placeholder="0" min="0">
                     </div>
                     <div class="form-group">
@@ -326,7 +328,7 @@
                         <input type="number" id="xai_codeExecCalls" placeholder="0" min="0">
                     </div>
                     <div class="form-group">
-                        <label>Document Search calls</label>
+                        <label>Collections Search calls</label>
                         <input type="number" id="xai_docSearchCalls" placeholder="0" min="0">
                     </div>
                 </div>
@@ -354,15 +356,16 @@
                 <div>
                     <h4>Assumptions</h4>
                     <ul>
-                        <li>Per-1M token pricing. Batch = 50% off for most providers.</li>
-                        <li>Gemini 2.5/3 Pro, Claude Sonnet 4.5 have long-prompt tiers (&gt;200k).</li>
-                        <li>O-series reasoning tokens are billed as output (not shown separately).</li>
+                        <li>Per-1M token pricing. Batch = 50% off token costs where officially supported.</li>
+                        <li>Long-context premiums are modeled only when the provider publishes separate rates.</li>
+                        <li>Tool-call fees are added on top of token pricing where providers bill them separately.</li>
                     </ul>
                 </div>
                 <div>
                     <h4>Notes</h4>
                     <ul>
-                        <li>Prices as of January 2026. Check provider docs for latest.</li>
+                        <li>Prices verified March 27, 2026 against official provider pricing/docs pages.</li>
+                        <li>Gemini 3.1 models shown here are preview models and may change.</li>
                         <li>Cached input discounts not included in base calculation.</li>
                     </ul>
                 </div>
@@ -371,80 +374,57 @@
     </div>
 
     <script>
-        // Pricing data (January 2026)
+        // Pricing data (verified March 27, 2026)
         const PRICING = {
             OpenAI: {
-                "gpt-5.2": { in: 1.75, out: 14.0 },
-                "gpt-5.1": { in: 1.25, out: 10.0 },
-                "gpt-5-mini": { in: 0.25, out: 2.0 },
-                "gpt-5-nano": { in: 0.05, out: 0.4 },
-                "gpt-4.1": { in: 2.0, out: 8.0 },
-                "gpt-4.1-mini": { in: 0.4, out: 1.6 },
-                "gpt-4.1-nano": { in: 0.1, out: 0.4 },
-                "gpt-4o": { in: 2.5, out: 10.0 },
-                "gpt-4o-mini": { in: 0.15, out: 0.6 },
-                "o3": { in: 2.0, out: 8.0 },
-                "o3-mini": { in: 1.1, out: 4.4 },
-                "o4-mini": { in: 1.1, out: 4.4 },
-                "o1": { in: 15.0, out: 60.0 },
-                "o1-mini": { in: 1.1, out: 4.4 }
+                "gpt-5.4": { in: 2.5, out: 15.0 },
+                "gpt-5.4-mini": { in: 0.75, out: 4.5 },
+                "gpt-5.4-nano": { in: 0.2, out: 1.25 }
             },
             Anthropic: {
-                "claude-opus-4.5": { in: 5.0, out: 25.0 },
-                "claude-opus-4.1": { in: 15.0, out: 75.0 },
-                "claude-sonnet-4.5": {
-                    standard: { in: 3.0, out: 15.0 },
-                    longPrompt: { in: 6.0, out: 22.5 }
+                "claude-opus-4.6": {
+                    standard: { in: 5.0, out: 25.0 },
+                    longPrompt: { in: 10.0, out: 37.5 },
+                    longPromptThreshold: 200000
                 },
-                "claude-sonnet-4": { in: 3.0, out: 15.0 },
-                "claude-haiku-4.5": { in: 1.0, out: 5.0 },
-                "claude-haiku-3.5": { in: 0.8, out: 4.0 },
-                "claude-haiku-3": { in: 0.25, out: 1.25 }
+                "claude-sonnet-4.6": { in: 3.0, out: 15.0 },
+                "claude-haiku-4.5": { in: 1.0, out: 5.0 }
             },
             Gemini: {
-                "gemini-3-pro": {
+                "gemini-3.1-pro-preview": {
                     standard: { in: 2.0, out: 12.0 },
                     longPrompt: { in: 4.0, out: 18.0 },
+                    longPromptThreshold: 200000,
                     cacheWrite_standard: 0.2,
                     cacheWrite_long: 0.4,
                     cacheStoragePerMTokHour: 4.5
                 },
-                "gemini-3-flash": {
-                    in: 0.5, out: 3.0,
-                    cacheWrite: 0.05,
-                    cacheStoragePerMTokHour: 1.0
-                },
-                "gemini-2.5-pro": {
-                    standard: { in: 1.25, out: 10.0 },
-                    longPrompt: { in: 2.5, out: 15.0 },
-                    cacheWrite_standard: 0.125,
-                    cacheWrite_long: 0.25,
+                "gemini-3.1-flash-preview": {
+                    standard: { in: 1.0, out: 6.0 },
+                    longPrompt: { in: 2.0, out: 9.0 },
+                    longPromptThreshold: 200000,
+                    cacheWrite_standard: 0.2,
+                    cacheWrite_long: 0.4,
                     cacheStoragePerMTokHour: 4.5
                 },
-                "gemini-2.5-flash": {
-                    in: 0.3, out: 2.5,
-                    cacheWrite: 0.03,
-                    cacheStoragePerMTokHour: 1.0
-                },
-                "gemini-2.5-flash-lite": {
-                    in: 0.1, out: 0.4,
-                    cacheWrite: 0.01,
-                    cacheStoragePerMTokHour: 1.0
-                },
-                "gemini-2.0-flash": {
-                    in: 0.1, out: 0.4,
+                "gemini-3.1-flash-lite-preview": {
+                    in: 0.25, out: 1.5,
                     cacheWrite: 0.025,
                     cacheStoragePerMTokHour: 1.0
-                },
-                "gemini-2.0-flash-lite": { in: 0.075, out: 0.3 }
+                }
             },
             xAI: {
-                "grok-4": { in: 3.0, out: 15.0 },
-                "grok-4.1-fast": { in: 0.2, out: 0.5 },
-                "grok-4-fast": { in: 0.2, out: 0.5 },
-                "grok-code-fast-1": { in: 0.2, out: 1.5 },
-                "grok-3": { in: 3.0, out: 15.0 },
-                "grok-3-mini": { in: 0.3, out: 0.5 }
+                "grok-4.20": {
+                    standard: { in: 2.0, out: 6.0 },
+                    longPrompt: { in: 4.0, out: 12.0 },
+                    longPromptThreshold: 200000
+                },
+                "grok-4-1-fast": {
+                    standard: { in: 0.2, out: 0.5 },
+                    longPrompt: { in: 0.4, out: 1.0 },
+                    longPromptThreshold: 128000
+                },
+                "grok-code-fast-1": { in: 0.2, out: 1.5 }
             }
         };
 
@@ -457,24 +437,19 @@
                 webSearchPer1kCalls: 10.0
             },
             Gemini: {
-                googleGroundingPer1k: 35.0
+                googleGroundingPer1k: 14.0
             },
             Anthropic: {
                 codeExecutionContainerPerHour: 0.05,
                 webSearchPer1k: 10.0
             },
             xAI: {
-                searchPer1k: 5.0,
-                liveSearchPer1kSources: 25.0,
+                webSearchPer1k: 5.0,
+                xSearchPer1k: 5.0,
                 codeExecPer1k: 5.0,
-                docSearchPer1k: 5.0
+                collectionsSearchPer1k: 2.5
             }
         };
-
-        // Models with long-prompt tiers
-        const LONG_PROMPT_MODELS = [
-            'gemini-3-pro', 'gemini-2.5-pro', 'claude-sonnet-4.5'
-        ];
 
         // DOM elements
         const providerEl = document.getElementById('provider');
@@ -482,6 +457,8 @@
         const useBatchEl = document.getElementById('useBatch');
         const useLongPromptEl = document.getElementById('useLongPrompt');
         const longPromptLabelEl = document.getElementById('longPromptLabel');
+        const longPromptTextEl = document.getElementById('longPromptText');
+        const longPromptNoteEl = document.getElementById('longPromptNote');
         const inputTokensEl = document.getElementById('inputTokens');
         const outputTokensEl = document.getElementById('outputTokens');
 
@@ -522,6 +499,7 @@
         function updateUI() {
             const provider = providerEl.value;
             const model = modelEl.value;
+            const pricing = PRICING[provider][model];
 
             // Show/hide extras
             Object.keys(extrasContainers).forEach(p => {
@@ -529,13 +507,22 @@
             });
 
             // Show/hide long prompt checkbox
-            const hasLongPrompt = LONG_PROMPT_MODELS.includes(model);
+            const hasLongPrompt = Boolean(pricing && pricing.longPrompt);
             longPromptLabelEl.classList.toggle('hidden', !hasLongPrompt);
             if (!hasLongPrompt) useLongPromptEl.checked = false;
 
-            // Disable batch for xAI
-            useBatchEl.disabled = provider === 'xAI';
-            if (provider === 'xAI') useBatchEl.checked = false;
+            if (hasLongPrompt) {
+                const threshold = pricing.longPromptThreshold || 200000;
+                const thresholdLabel = threshold >= 1000000
+                    ? `${(threshold / 1000000).toFixed(0)}M`
+                    : `${Math.round(threshold / 1000)}k`;
+                longPromptTextEl.textContent = 'Long-context pricing';
+                longPromptNoteEl.textContent = `Higher published rates apply after ${thresholdLabel} input tokens for this model.`;
+                longPromptNoteEl.classList.remove('hidden');
+            } else {
+                longPromptNoteEl.textContent = '';
+                longPromptNoteEl.classList.add('hidden');
+            }
 
             calculate();
         }
@@ -556,7 +543,6 @@
 
             // Determine rates based on model structure
             if (pricing.standard) {
-                // Has long-prompt tiers (Gemini Pro, Claude Sonnet 4.5)
                 const tier = useLongPrompt ? pricing.longPrompt : pricing.standard;
                 inRate = tier.in;
                 outRate = tier.out;
@@ -565,8 +551,8 @@
                 outRate = pricing.out;
             }
 
-            // Apply batch discount (50% for most)
-            if (useBatch && provider !== 'xAI') {
+            // Apply batch discount where supported by the provider pages used for this tool
+            if (useBatch) {
                 inRate *= 0.5;
                 outRate *= 0.5;
             }
@@ -591,12 +577,12 @@
                 // Cache costs
                 if (pricing.cacheWrite_standard !== undefined) {
                     const writeRate = useLongPrompt ? pricing.cacheWrite_long : pricing.cacheWrite_standard;
-                    extrasCost += getNum(document.getElementById('g_cacheWritesMTokens')) * writeRate;
+                    extrasCost += getNum(document.getElementById('g_cacheWritesMTokens')) * writeRate * (useBatch ? 0.5 : 1);
                 } else if (pricing.cacheWrite !== undefined) {
-                    extrasCost += getNum(document.getElementById('g_cacheWritesMTokens')) * pricing.cacheWrite;
+                    extrasCost += getNum(document.getElementById('g_cacheWritesMTokens')) * pricing.cacheWrite * (useBatch ? 0.5 : 1);
                 }
                 if (pricing.cacheStoragePerMTokHour) {
-                    extrasCost += getNum(document.getElementById('g_cacheStorageTokenHours')) * pricing.cacheStoragePerMTokHour;
+                    extrasCost += getNum(document.getElementById('g_cacheStorageTokenHours')) * pricing.cacheStoragePerMTokHour * (useBatch ? 0.5 : 1);
                 }
             }
 
@@ -608,10 +594,10 @@
 
             if (provider === 'xAI') {
                 const ext = EXTRAS.xAI;
-                extrasCost += (getNum(document.getElementById('xai_searchCalls')) / 1000) * ext.searchPer1k;
-                extrasCost += (getNum(document.getElementById('xai_liveSearchSources')) / 1000) * ext.liveSearchPer1kSources;
+                extrasCost += (getNum(document.getElementById('xai_searchCalls')) / 1000) * ext.webSearchPer1k;
+                extrasCost += (getNum(document.getElementById('xai_liveSearchSources')) / 1000) * ext.xSearchPer1k;
                 extrasCost += (getNum(document.getElementById('xai_codeExecCalls')) / 1000) * ext.codeExecPer1k;
-                extrasCost += (getNum(document.getElementById('xai_docSearchCalls')) / 1000) * ext.docSearchPer1k;
+                extrasCost += (getNum(document.getElementById('xai_docSearchCalls')) / 1000) * ext.collectionsSearchPer1k;
             }
 
             const total = tokenCost + extrasCost;
