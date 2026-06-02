@@ -29,6 +29,7 @@
     label{display:block;margin-bottom:12px}
     .label-text{display:block;margin-bottom:6px;font-weight:600;font-size:14px}
     .label-text .sub{font-weight:400;color:var(--muted);font-size:12px}
+    .req{color:#b42318}
     input[type=text],textarea,select{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;background:#fff;color:var(--ink);font-family:inherit}
     textarea{min-height:60px;resize:vertical}
     .hint{margin:6px 0 0;font-size:12px;color:var(--muted)}
@@ -45,13 +46,15 @@
     .thumb{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#efe8db;border:1px solid rgba(201,186,162,.7)}
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
     .thumb-remove{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.75);background:rgba(255,255,255,.92);color:#374151;font-size:15px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
-    .rrow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-bottom:8px}
+    .rrow,.pinrow{display:grid;gap:8px;align-items:center;margin-bottom:8px}
+    .rrow{grid-template-columns:1fr auto auto}
+    .pinrow{grid-template-columns:1fr auto}
     .pin-btn{padding:10px 12px;border:1px solid var(--line);background:#fff;border-radius:12px;filter:grayscale(1) opacity(.5)}
     .pin-btn.active{filter:none;background:var(--accent-soft);border-color:var(--accent)}
     .small-btn{padding:10px 12px;border:1px solid var(--line);background:#fff;border-radius:12px;font-weight:600}
     .toggle{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-weight:600}
     .toggle input{width:auto}
-    .inline{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+    .inline{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
     .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
     .btn-spinner{width:15px;height:15px;border-radius:999px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:spin .8s linear infinite;display:none}
     .primary-btn.loading{display:inline-flex;align-items:center;justify-content:center;gap:9px}
@@ -87,9 +90,9 @@
 
   <div class="shell">
     <section class="card form-card">
-      <div class="pill">🧴 Стиль уже задан</div>
+      <div class="pill">🧴 Студия карточек</div>
       <h1>Студия карточек OZON</h1>
-      <p class="lead">Загрузите фото товара (можно с телефона), заполните поля — и соберите весь набор карточек в едином стиле. Бейджи и преимущества можно закрепить 📌 — они останутся после «Сбросить». Неудачно? Нажмите «Переделать».</p>
+      <p class="lead">Загрузите фото товара (можно с телефона), заполните поля — и соберите весь набор карточек в едином стиле. Поля с 📌 закрепляются — останутся после «Сбросить». Неудачно? Нажмите «Переделать».</p>
 
       <!-- 1. product photos -->
       <div class="section">
@@ -107,8 +110,25 @@
       <div class="section">
         <p class="section-title">2. Карточка</p>
         <label class="toggle"><input type="checkbox" id="isCover" checked> Это обложка (главная карточка)</label>
-        <label><span class="label-text">Заголовок</span><input type="text" id="title" placeholder="СРЕДСТВО ДЛЯ МЫТЬЯ ПОСУДЫ"></label>
-        <label><span class="label-text">Подзаголовок <span class="sub">(необязательно)</span></span><input type="text" id="subtitle" placeholder="Бальзам Extra Power"></label>
+
+        <label id="formatWrap" class="hidden"><span class="label-text">Формат доп. карточки</span>
+          <select id="format">
+            <option value="claim">Крупное утверждение (без товара)</option>
+            <option value="lifestyle">Образ жизни / люди</option>
+            <option value="checklist">Чек-лист преимуществ (без товара)</option>
+            <option value="concept">Концепт / макро (без товара)</option>
+            <option value="ingredients">Состав / натуральность (без товара)</option>
+            <option value="comparison">Сравнение</option>
+            <option value="inuse">Товар в использовании</option>
+            <option value="lineup">Линейка / объёмы</option>
+          </select>
+        </label>
+
+        <span class="label-text">Заголовок <span class="sub">📌 закрепить</span></span>
+        <div class="pinrow"><input type="text" id="title" placeholder="СРЕДСТВО ДЛЯ МЫТЬЯ ПОСУДЫ"><button type="button" class="pin-btn" id="titlePin" title="Закрепить — останется после «Сбросить»">📌</button></div>
+        <span class="label-text">Подзаголовок <span class="sub">📌 закрепить · необязательно</span></span>
+        <div class="pinrow"><input type="text" id="subtitle" placeholder="Бальзам Extra Power"><button type="button" class="pin-btn" id="subtitlePin" title="Закрепить — останется после «Сбросить»">📌</button></div>
+
         <label><span class="label-text">Бренд <span class="sub">(необязательно)</span></span><input type="text" id="brand" placeholder="AKINAWA"></label>
         <div class="inline">
           <button class="secondary-btn" type="button" id="logoBtn">Логотип (необязательно)</button>
@@ -124,19 +144,20 @@
         <div id="bulletList"></div>
         <button class="ghost-btn" type="button" id="addBulletBtn">+ Добавить пункт</button>
 
-        <label style="margin-top:14px"><span class="label-text">Визуальная подача</span>
-          <select id="visual">
-            <option value="product">Только товар</option>
-            <option value="scene">Товар в сцене</option>
-            <option value="collage">Коллаж / линейка</option>
-            <option value="info">Инфо-блок (текст)</option>
-          </select>
-        </label>
-        <label id="sceneWrap" class="hidden"><span class="label-text">Что показать на фоне / в сцене</span><input type="text" id="sceneText" placeholder="руки моют тарелку под струёй воды на чистой кухне"></label>
-        <label id="peopleWrap" class="toggle hidden"><input type="checkbox" id="people"> Добавить людей (социальное доказательство)</label>
+        <label style="margin-top:14px"><span class="label-text">Дополнительные требования <span class="req">*</span> <span class="sub">(имеют наивысший приоритет)</span></span>
+          <textarea id="extra" placeholder="напр.: тёплая жёлто-зелёная гамма; крупный акцент на «удаляет жир»; без людей"></textarea></label>
+      </div>
 
-        <label style="margin-top:6px"><span class="label-text">Дополнительные пожелания <span class="sub">(для этой карточки)</span></span>
-          <textarea id="extra" placeholder="напр.: тёплая жёлто-зелёная гамма, акцент на жире"></textarea></label>
+      <!-- 3. style -->
+      <div class="section">
+        <p class="section-title">3. Стиль набора</p>
+        <label class="toggle"><input type="checkbox" id="useRef" checked> Использовать эталон стиля</label>
+        <div class="inline">
+          <button class="secondary-btn" type="button" id="uploadRefBtn">Загрузить свой эталон</button>
+          <span class="hint" id="refName"></span>
+          <input type="file" id="refInput" accept="image/*" hidden>
+        </div>
+        <div class="hint" id="styleInfo">Сейчас: по умолчанию (AKINAWA). Сгенерируйте обложку и нажмите «★ Сделать стилем набора», чтобы остальные карточки совпали с ней.</div>
       </div>
 
       <div class="actions">
@@ -151,6 +172,7 @@
       <div class="result-frame empty" id="resultFrame"></div>
       <div class="result-actions">
         <button class="secondary-btn" type="button" id="downloadBtn" disabled>Скачать PNG</button>
+        <button class="secondary-btn" type="button" id="setStyleBtn" disabled>★ Сделать стилем набора</button>
         <button class="secondary-btn" type="button" id="downloadAllBtn" disabled>Скачать всё (zip)</button>
       </div>
       <div class="gallery" id="gallery"></div>
@@ -163,7 +185,8 @@
       : "https://ozon-dish-cards-topfmx4n6a-ew.a.run.app";
 
     const $ = (id) => document.getElementById(id);
-    const state = { productFiles: [], logoFile: null, resultBlob: null, resultUrl: "", gallery: [], generating: false };
+    // styleRef: null | {kind:'upload', file} | {kind:'cover', blob}
+    const state = { productFiles: [], logoFile: null, styleRef: null, resultBlob: null, resultUrl: "", gallery: [], generating: false };
 
     // ---------- auth ----------
     const PW_KEY = "ozon_studio_pw";
@@ -184,6 +207,7 @@
       $("generateBtn").classList.toggle("loading", state.generating);
       $("genLabel").textContent = state.generating ? "Генерация…" : "Сгенерировать";
       $("downloadBtn").disabled = !state.resultBlob;
+      $("setStyleBtn").disabled = !state.resultBlob || state.generating;
       $("downloadAllBtn").disabled = state.gallery.length === 0;
     }
 
@@ -213,6 +237,19 @@
     $("logoBtn").addEventListener("click", () => $("logoInput").click());
     $("logoInput").addEventListener("change", (e) => { state.logoFile = e.target.files[0] || null; $("logoName").textContent = state.logoFile ? state.logoFile.name : ""; });
 
+    // ---------- isCover -> format visibility ----------
+    $("isCover").addEventListener("change", () => $("formatWrap").classList.toggle("hidden", $("isCover").checked));
+
+    // ---------- pinnable single fields (title, subtitle) ----------
+    const SPIN = { title: "ozon_pin_title", subtitle: "ozon_pin_subtitle" };
+    function wireSinglePin(inputId, pinId) {
+      const inp = $(inputId), btn = $(pinId), key = SPIN[inputId];
+      const save = () => { if (inp.dataset.pinned === "1") localStorage.setItem(key, JSON.stringify({ value: inp.value })); else localStorage.removeItem(key); };
+      try { const s = JSON.parse(localStorage.getItem(key) || "null"); if (s) { inp.value = s.value || ""; inp.dataset.pinned = "1"; btn.classList.add("active"); } } catch (e) {}
+      btn.addEventListener("click", () => { const on = inp.dataset.pinned === "1"; inp.dataset.pinned = on ? "" : "1"; btn.classList.toggle("active", !on); save(); });
+      inp.addEventListener("input", () => { if (inp.dataset.pinned === "1") save(); });
+    }
+
     // ---------- pinnable rows (badges + преимущества) ----------
     const PIN = { attrList: "ozon_pin_badges", bulletList: "ozon_pin_bullets" };
     function savePins(listId) {
@@ -241,11 +278,26 @@
     $("addAttrBtn").addEventListener("click", () => makeRow("attrList", "", false, "напр.: 1000 мл"));
     $("addBulletBtn").addEventListener("click", () => makeRow("bulletList", "", false, "напр.: Удаляет жир и запах"));
 
-    // ---------- visual toggles ----------
-    $("visual").addEventListener("change", () => {
-      const v = $("visual").value;
-      $("sceneWrap").classList.toggle("hidden", !(v === "scene" || v === "collage"));
-      $("peopleWrap").classList.toggle("hidden", v !== "scene");
+    // ---------- style reference ----------
+    function styleInfoText() {
+      if (!$("useRef").checked) return "Без эталона — карточка по общим правилам дизайна.";
+      if (state.styleRef && state.styleRef.kind === "upload") return "Сейчас: ваш эталон — " + state.styleRef.file.name;
+      if (state.styleRef && state.styleRef.kind === "cover") return "Сейчас: стиль набора = ваша обложка ✓";
+      return "Сейчас: по умолчанию (AKINAWA). Сгенерируйте обложку и нажмите «★ Сделать стилем набора».";
+    }
+    function refreshStyleInfo() { $("styleInfo").textContent = styleInfoText(); }
+    $("useRef").addEventListener("change", refreshStyleInfo);
+    $("uploadRefBtn").addEventListener("click", () => $("refInput").click());
+    $("refInput").addEventListener("change", (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      state.styleRef = { kind: "upload", file: f }; $("refName").textContent = f.name;
+      $("useRef").checked = true; refreshStyleInfo(); e.target.value = "";
+    });
+    $("setStyleBtn").addEventListener("click", () => {
+      if (!state.resultBlob) return;
+      state.styleRef = { kind: "cover", blob: state.resultBlob };
+      $("useRef").checked = true; $("refName").textContent = ""; refreshStyleInfo();
+      setStatus("Эта карточка теперь — стиль набора.", "success");
     });
 
     // ---------- result + gallery ----------
@@ -276,19 +328,23 @@
     // ---------- generate ----------
     async function generate() {
       if (!state.productFiles.length) return setStatus("Загрузите фото товара.", "error");
+      const extra = $("extra").value.trim();
+      if (!extra) { setStatus("Заполните «Дополнительные требования» — это обязательное поле.", "error"); $("extra").focus(); return; }
+      const isCover = $("isCover").checked;
+      const useRef = $("useRef").checked;
       const fd = new FormData();
-      fd.append("isCover", $("isCover").checked ? "true" : "false");
+      fd.append("isCover", isCover ? "true" : "false");
+      if (!isCover) fd.append("format", $("format").value);
+      fd.append("use_reference", useRef ? "true" : "false");
       state.productFiles.forEach(f => fd.append("images", f));
       if (state.logoFile) fd.append("logo", state.logoFile);
+      if (useRef && state.styleRef) fd.append("styleRef", state.styleRef.file || state.styleRef.blob, "styleref.png");
       fd.append("title", $("title").value.trim());
       fd.append("subtitle", $("subtitle").value.trim());
       fd.append("brand", $("brand").value.trim());
-      collectList("attrList").forEach(a => fd.append("attributes", a));
+      collectList("attrList").forEach(a => fd.append("badges", a));
       collectList("bulletList").forEach(b => fd.append("bullets", b));
-      fd.append("visual", $("visual").value);
-      fd.append("sceneText", $("sceneText").value.trim());
-      fd.append("people", $("people").checked ? "true" : "false");
-      fd.append("extra", $("extra").value.trim());
+      fd.append("extra", extra);
       state.generating = true; updateButtons(); setStatus("Генерация…");
       try {
         const res = await fetch(API_BASE + "/generate", { method: "POST", headers: authHeaders(), body: fd });
@@ -300,26 +356,29 @@
     $("generateBtn").addEventListener("click", generate);
     $("retryBtn").addEventListener("click", generate);
 
-    // ---------- reset (keeps pinned rows) ----------
+    // ---------- reset (keeps pinned fields) ----------
     $("resetBtn").addEventListener("click", () => {
-      state.productFiles = []; state.logoFile = null;
+      state.productFiles = []; state.logoFile = null; state.styleRef = null;
       state.resultBlob = null; if (state.resultUrl) URL.revokeObjectURL(state.resultUrl); state.resultUrl = "";
       $("thumbs").innerHTML = ""; $("gallery").innerHTML = ""; state.gallery = [];
-      ["title", "subtitle", "brand", "sceneText", "extra"].forEach(id => $(id).value = "");
-      $("logoName").textContent = ""; $("isCover").checked = true; $("visual").value = "product"; $("people").checked = false;
-      $("sceneWrap").classList.add("hidden"); $("peopleWrap").classList.add("hidden");
-      // remove only UNPINNED rows
+      $("brand").value = ""; $("extra").value = "";
+      ["title", "subtitle"].forEach(id => { if ($(id).dataset.pinned !== "1") $(id).value = ""; });
+      $("logoName").textContent = ""; $("refName").textContent = ""; $("isCover").checked = true; $("useRef").checked = true;
+      $("formatWrap").classList.add("hidden"); $("format").value = "claim";
       ["attrList", "bulletList"].forEach(listId => {
         [...$(listId).querySelectorAll(".rrow")].forEach(r => { if (r.dataset.pinned !== "1") r.remove(); });
         ensureRow(listId, listId === "attrList" ? "напр.: 1000 мл" : "напр.: Удаляет жир и запах");
       });
       $("resultFrame").classList.add("empty"); $("resultFrame").innerHTML = "";
-      setStatus("Сброшено. Закреплённые 📌 поля сохранены."); updateButtons();
+      refreshStyleInfo(); setStatus("Сброшено. Закреплённые 📌 поля сохранены."); updateButtons();
     });
 
     // ---------- init ----------
+    wireSinglePin("title", "titlePin");
+    wireSinglePin("subtitle", "subtitlePin");
     loadPins("attrList", "напр.: 1000 мл");
     loadPins("bulletList", "напр.: Удаляет жир и запах");
+    refreshStyleInfo();
     if (!getPw()) showGate(); else hideGate();
     updateButtons();
   </script>
