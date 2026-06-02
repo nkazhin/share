@@ -144,7 +144,7 @@
         <div id="bulletList"></div>
         <button class="ghost-btn" type="button" id="addBulletBtn">+ Добавить пункт</button>
 
-        <label style="margin-top:14px"><span class="label-text">Дополнительные требования <span class="req">*</span> <span class="sub">(имеют наивысший приоритет)</span></span>
+        <label style="margin-top:14px"><span class="label-text">Дополнительные требования <span class="sub">(необязательно; имеют наивысший приоритет)</span></span>
           <textarea id="extra" placeholder="напр.: тёплая жёлто-зелёная гамма; крупный акцент на «удаляет жир»; без людей"></textarea></label>
       </div>
 
@@ -328,8 +328,7 @@
     // ---------- generate ----------
     async function generate() {
       if (!state.productFiles.length) return setStatus("Загрузите фото товара.", "error");
-      const extra = $("extra").value.trim();
-      if (!extra) { setStatus("Заполните «Дополнительные требования» — это обязательное поле.", "error"); $("extra").focus(); return; }
+      const extra = $("extra").value.trim();  // optional
       const isCover = $("isCover").checked;
       const useRef = $("useRef").checked;
       const fd = new FormData();
