@@ -124,9 +124,9 @@
           </select>
         </label>
 
-        <span class="label-text">Заголовок <span class="sub">📌 закрепить</span></span>
+        <span class="label-text">Заголовок</span>
         <div class="pinrow"><input type="text" id="title" placeholder="СРЕДСТВО ДЛЯ МЫТЬЯ ПОСУДЫ"><button type="button" class="pin-btn" id="titlePin" title="Закрепить — останется после «Сбросить»">📌</button></div>
-        <span class="label-text">Подзаголовок <span class="sub">📌 закрепить · необязательно</span></span>
+        <span class="label-text">Подзаголовок <span class="sub">(необязательно)</span></span>
         <div class="pinrow"><input type="text" id="subtitle" placeholder="Бальзам Extra Power"><button type="button" class="pin-btn" id="subtitlePin" title="Закрепить — останется после «Сбросить»">📌</button></div>
 
         <label><span class="label-text">Бренд <span class="sub">(необязательно)</span></span><input type="text" id="brand" placeholder="AKINAWA"></label>
@@ -136,11 +136,11 @@
           <input type="file" id="logoInput" accept="image/*" hidden>
         </div>
 
-        <span class="label-text">Бейджи / атрибуты <span class="sub">📌 закрепите повторяющиеся (EAC, страна…)</span></span>
+        <span class="label-text">Бейджи / атрибуты</span>
         <div id="attrList"></div>
         <button class="ghost-btn" type="button" id="addAttrBtn">+ Добавить бейдж</button>
 
-        <span class="label-text" style="margin-top:14px">Преимущества <span class="sub">📌 закрепите повторяющиеся</span></span>
+        <span class="label-text" style="margin-top:14px">Преимущества</span>
         <div id="bulletList"></div>
         <button class="ghost-btn" type="button" id="addBulletBtn">+ Добавить пункт</button>
 
@@ -281,21 +281,22 @@
     // ---------- style reference ----------
     function styleInfoText() {
       if (!$("useRef").checked) return "Без эталона — карточка по общим правилам дизайна.";
-      if (state.styleRef && state.styleRef.kind === "upload") return "Сейчас: ваш эталон — " + state.styleRef.file.name;
+      if (state.styleRef && state.styleRef.kind === "upload") return "Сейчас: ваш эталон — " + state.styleRef.name;
       if (state.styleRef && state.styleRef.kind === "cover") return "Сейчас: стиль набора = ваша обложка ✓";
       return "Сейчас: по умолчанию (AKINAWA). Сгенерируйте обложку и нажмите «★ Сделать стилем набора».";
     }
     function refreshStyleInfo() { $("styleInfo").textContent = styleInfoText(); }
     $("useRef").addEventListener("change", refreshStyleInfo);
     $("uploadRefBtn").addEventListener("click", () => $("refInput").click());
-    $("refInput").addEventListener("change", (e) => {
+    $("refInput").addEventListener("change", async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      state.styleRef = { kind: "upload", file: f }; $("refName").textContent = f.name;
-      $("useRef").checked = true; refreshStyleInfo(); e.target.value = "";
+      $("refName").textContent = f.name; $("useRef").checked = true;
+      state.styleRef = { kind: "upload", name: f.name, blob: await downscaleBlob(f) };
+      refreshStyleInfo(); e.target.value = "";
     });
-    $("setStyleBtn").addEventListener("click", () => {
+    $("setStyleBtn").addEventListener("click", async () => {
       if (!state.resultBlob) return;
-      state.styleRef = { kind: "cover", blob: state.resultBlob };
+      state.styleRef = { kind: "cover", blob: await downscaleBlob(state.resultBlob) };
       $("useRef").checked = true; $("refName").textContent = ""; refreshStyleInfo();
       setStatus("Эта карточка теперь — стиль набора.", "success");
     });
@@ -325,6 +326,23 @@
       download(await zip.generateAsync({ type: "blob" }), "ozon-cards.zip");
     });
 
+    // downscale a blob to <=maxW px (style refs don't need full 2K -> much faster upload/gen)
+    function downscaleBlob(blob, maxW = 1024) {
+      return new Promise(resolve => {
+        const img = new Image(); const url = URL.createObjectURL(blob);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          const scale = Math.min(1, maxW / img.width);
+          const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+          const c = document.createElement("canvas"); c.width = w; c.height = h;
+          c.getContext("2d").drawImage(img, 0, 0, w, h);
+          c.toBlob(b => resolve(b || blob), "image/jpeg", 0.9);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(blob); };
+        img.src = url;
+      });
+    }
+
     // ---------- generate ----------
     async function generate() {
       if (!state.productFiles.length) return setStatus("Загрузите фото товара.", "error");
@@ -337,7 +355,7 @@
       fd.append("use_reference", useRef ? "true" : "false");
       state.productFiles.forEach(f => fd.append("images", f));
       if (state.logoFile) fd.append("logo", state.logoFile);
-      if (useRef && state.styleRef) fd.append("styleRef", state.styleRef.file || state.styleRef.blob, "styleref.png");
+      if (useRef && state.styleRef) fd.append("styleRef", state.styleRef.blob, "styleref.jpg");
       fd.append("title", $("title").value.trim());
       fd.append("subtitle", $("subtitle").value.trim());
       fd.append("brand", $("brand").value.trim());
