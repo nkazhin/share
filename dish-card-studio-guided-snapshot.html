@@ -188,6 +188,8 @@
             <option value="inuse">Товар в использовании</option>
             <option value="lineup">Линейка / объёмы</option>
           </select>
+          <label class="toggle" style="margin:10px 0 2px"><input type="checkbox" id="showProduct"> Показать товар на этой карточке</label>
+          <p class="hint" style="margin-top:0">Если включено, фото товара отправится в генерацию даже для форматов «без товара».</p>
           <span class="label-text">Заголовок</span>
           <input type="text" id="sTitle" placeholder="ЧИСТОТА БЕЗ УСИЛИЙ">
           <span class="label-text">Пункты / преимущества</span>
@@ -196,8 +198,13 @@
           <span class="label-text">Бейджи <span class="sub">(необязательно)</span></span>
           <div id="sBadges"></div>
           <button class="ghost-btn" type="button" id="addSBadge">+ Добавить бейдж</button>
+          <span class="label-text">Иконки <span class="sub">(необязательно)</span></span>
+          <button class="secondary-btn" type="button" id="pickIconsBtn">Загрузить иконки</button>
+          <input type="file" id="iconInput" accept="image/*" multiple hidden>
+          <p class="hint" id="iconHint">Иконки отправятся как референсы. Общий лимит модели — 14 изображений с учётом товара, логотипа и обложки-стиля.</p>
+          <div class="thumbs" id="iconThumbs"></div>
           <span class="label-text">Дополнительные требования <span class="sub">(необязательно; наивысший приоритет)</span></span>
-          <textarea id="sExtra" placeholder="напр.: тёплая сцена на кухне, мама с ребёнком; крупная плашка-подпись"></textarea>
+          <textarea id="sExtra" placeholder="напр.: тёплая сцена на кухне; не придумывать новые варианты товара; иконки оставить рядом с пунктами"></textarea>
           <div style="margin-top:16px"><button class="primary-btn" type="button" id="genSupport"><span class="btn-spinner"></span><span id="genSupportLabel">Сгенерировать карточку</span></button></div>
           <div class="status" id="s3status"></div>
         </div>
@@ -227,7 +234,7 @@
     const API_BASE = (location.hostname === "localhost" || location.hostname === "127.0.0.1" || location.protocol === "file:")
       ? "http://localhost:8080" : "https://ozon-dish-cards-snapshot-topfmx4n6a-ew.a.run.app";
     const $ = (id) => document.getElementById(id);
-    const state = { productFiles: [], logoFile: null, genRef: null, coverOpts: [], selCover: -1, cover: null, coverRef: null, coverShownBlob: null, supShownBlob: null, pinnedBadges: [], pinnedBullets: [], supporting: [], busy: false };
+    const state = { productFiles: [], logoFile: null, iconFiles: [], genRef: null, coverOpts: [], selCover: -1, cover: null, coverRef: null, coverShownBlob: null, supShownBlob: null, pinnedBadges: [], pinnedBullets: [], supporting: [], busy: false };
 
     // ---- auth ----
     const PW_KEY = "ozon_studio_pw";
@@ -261,6 +268,19 @@
     function spin(btnId, labelId, on, label) { $(btnId).classList.toggle("loading", on); $(btnId).disabled = on; $(labelId).textContent = on ? "Генерация…" : label; }
     function rows(listId) { return [...$(listId).querySelectorAll("input")].map(i => i.value.trim()).filter(Boolean); }
     function pinnedRows(listId) { return [...$(listId).querySelectorAll(".rrow")].filter(r => r.dataset.pinned === "1").map(r => r.querySelector("input").value.trim()).filter(Boolean); }
+    function formatShowsProduct() { return ["inuse", "lineup"].includes($("format").value); }
+    function supportingImageCount() {
+      const productCount = (formatShowsProduct() || $("showProduct").checked) ? state.productFiles.length : 0;
+      return productCount + (state.logoFile ? 1 : 0) + state.iconFiles.length + 1; // + cover style ref
+    }
+    function validateReferenceLimit() {
+      const count = supportingImageCount();
+      if (count > 14) {
+        setStatus("s3status", `Слишком много изображений для модели: ${count}. Уберите часть фото или иконок, максимум 14.`, "error");
+        return false;
+      }
+      return true;
+    }
     // simple row (step 3)
     function addRow(listId, ph, value = "") {
       const row = document.createElement("div"); row.className = "rrow2";
@@ -318,6 +338,31 @@
     // ---- logo ----
     $("logoBtn").addEventListener("click", () => $("logoInput").click());
     $("logoInput").addEventListener("change", e => { state.logoFile = e.target.files[0] || null; $("logoName").textContent = state.logoFile ? state.logoFile.name : ""; });
+
+    // ---- icons for supporting cards ----
+    function renderIconThumbs() {
+      const t = $("iconThumbs"); t.innerHTML = "";
+      state.iconFiles.forEach((file, i) => {
+        const d = document.createElement("div"); d.className = "thumb";
+        const img = document.createElement("img"); img.src = URL.createObjectURL(file); img.onload = () => URL.revokeObjectURL(img.src);
+        const x = document.createElement("button"); x.className = "x"; x.innerHTML = "&times;";
+        x.addEventListener("click", () => { state.iconFiles.splice(i, 1); renderIconThumbs(); validateReferenceLimit(); });
+        d.appendChild(img); d.appendChild(x); t.appendChild(d);
+      });
+      $("iconHint").textContent = state.iconFiles.length
+        ? `Иконок: ${state.iconFiles.length}. Сейчас в запросе будет ${supportingImageCount()} из 14 изображений.`
+        : "Иконки отправятся как референсы. Общий лимит модели — 14 изображений с учётом товара, логотипа и обложки-стиля.";
+    }
+    function mergeIconFiles(files) {
+      for (const f of files) {
+        if (!state.iconFiles.some(e => e.name === f.name && e.size === f.size)) state.iconFiles.push(f);
+      }
+      renderIconThumbs(); validateReferenceLimit();
+    }
+    $("pickIconsBtn").addEventListener("click", () => $("iconInput").click());
+    $("iconInput").addEventListener("change", e => { mergeIconFiles([...e.target.files].filter(f => f.type.startsWith("image/"))); e.target.value = ""; });
+    $("format").addEventListener("change", () => { renderIconThumbs(); validateReferenceLimit(); });
+    $("showProduct").addEventListener("change", () => { renderIconThumbs(); validateReferenceLimit(); });
 
     // ---- step 2: cover options ----
     function showCoverMain(blob) { const f = $("coverFrame"); f.classList.remove("empty"); f.innerHTML = ""; const img = document.createElement("img"); img.src = URL.createObjectURL(blob); f.appendChild(img); state.coverShownBlob = blob; $("coverDl").classList.remove("hidden"); }
@@ -391,13 +436,16 @@
     async function genSupport() {
       if (state.busy) return;
       if (!state.cover) { setStatus("s3status", "Сначала утвердите обложку.", "error"); return; }
+      if (!validateReferenceLimit()) return;
       state.busy = true; spin("genSupport", "genSupportLabel", true); setStatus("s3status", "Генерация карточки…");
       try {
         const fd = new FormData();
         fd.append("isCover", "false"); fd.append("format", $("format").value); fd.append("use_reference", "true");
+        fd.append("showProduct", $("showProduct").checked ? "true" : "false");
         fd.append("styleRef", state.coverRef || state.cover, "cover.jpg");
         state.productFiles.forEach(f => fd.append("images", f));
         if (state.logoFile) fd.append("logo", state.logoFile);
+        state.iconFiles.forEach(f => fd.append("icons", f));
         fd.append("title", $("sTitle").value.trim());
         rows("sBullets").forEach(b => fd.append("bullets", b)); rows("sBadges").forEach(b => fd.append("badges", b));
         fd.append("extra", $("sExtra").value.trim());
@@ -429,13 +477,14 @@
     $("downloadAll").addEventListener("click", async () => { const cards = allCards(); if (!cards.length) return; const zip = new JSZip(); cards.forEach(c => zip.file(c.name, c.blob)); download(await zip.generateAsync({ type: "blob" }), "ozon-cards.zip"); });
     $("restart").addEventListener("click", () => {
       if (!confirm("Начать новый набор? Текущие карточки будут удалены.")) return;
-      state.productFiles = []; state.logoFile = null; state.coverOpts.forEach(o => URL.revokeObjectURL(o.url)); state.coverOpts = []; state.selCover = -1;
+      state.productFiles = []; state.logoFile = null; state.iconFiles = []; state.coverOpts.forEach(o => URL.revokeObjectURL(o.url)); state.coverOpts = []; state.selCover = -1;
       state.cover = null; state.coverRef = null; state.genRef = null; state.coverShownBlob = null; state.supShownBlob = null; state.pinnedBadges = []; state.pinnedBullets = [];
       state.supporting.forEach(s => URL.revokeObjectURL(s.url)); state.supporting = []; step3prefilled = false;
       $("thumbs").innerHTML = ""; $("coverFrame").className = "result-frame empty"; $("coverFrame").innerHTML = ""; $("coverOpts").innerHTML = ""; $("coverDl").classList.add("hidden");
       $("supFrame").className = "result-frame empty"; $("supFrame").innerHTML = ""; $("supGallery").innerHTML = ""; $("supDl").classList.add("hidden");
       ["title", "subtitle", "brand", "cExtra", "sTitle", "sExtra"].forEach(id => $(id).value = "");
       ["cBadges", "cBullets", "sBullets", "sBadges"].forEach(l => $(l).innerHTML = "");
+      $("iconThumbs").innerHTML = ""; $("showProduct").checked = false; renderIconThumbs();
       $("logoName").textContent = ""; $("genRefName").textContent = ""; $("haveCoverName").textContent = ""; $("to2").disabled = true; $("approveCover").disabled = true; $("useDefault").checked = false;
       initRows(); gotoStep(1);
     });
